@@ -1,45 +1,18 @@
 version: 2.1
-
-commands:
-  destroy_environment:
-    description: Destroy back-end and front-end cloudformation stacks given a workflow ID.
-    steps:
-      - run:
-          name: Remove files from S3 on failure
-          when: on_fail
-          command: |
-            aws s3 rm s3://udapeople-${CIRCLE_WORKFLOW_ID:0:7} --recursive
-      - run:
-          name: Destroy environment
-          when: on_fail
-          command: |
-            aws cloudformation delete-stack --stack-name udapeople-backend-${CIRCLE_WORKFLOW_ID:0:7}
-            aws cloudformation delete-stack --stack-name udapeople-frontend-${CIRCLE_WORKFLOW_ID:0:7}
-
-  revert_migrations:
-    description: Revert the last migration if successfully run in the current workflow.
-    steps:
-      - restore_cache:
-          keys: [backend-build]
-      - run:
-          name: Revert migrations
-          when: on_fail
-          command: |
-            # Curl command here to see if there was a successful migration associated with the workflow id, store result in SUCCESS variable
-            SUCCESS=$(curl --insecure https://kvdb.io/4VnmEQtb22mcDLVUwHnG5q/migration_$\{CIRCLE_WORKFLOW_ID:0:7\})
-            if [[ $SUCCESS == 1 ]];
-            then
-              cd ~/project/backend
-              npm install
-              npm run migrations:revert #revert the successful migration
-            fi
+executors:
+  node:
+    docker:
+      - image: circleci/node:13.8.0
+  python:
+    docker:
+      - image: python:3.9.0-alpine
   aws:
     docker:
       - image: amazon/aws-cli
-    commands:
-    install_awscli:
-      description: Install AWS CLI v2
-      steps:
+commands:
+  install_awscli:
+    description: Install AWS CLI v2
+    steps:
       - run:
           name: Install AWS CLI v2
           command: |
@@ -68,7 +41,42 @@ commands:
             # Use n version manager to use Node.js v13.8.0
             sudo npm install --global n
             sudo n 13.8.0
-            
+  destroy-environment:
+    description: Destroy back-end and front-end cloudformation stacks given a workflow ID.
+    parameters:
+      # Add parameter here
+      workflow_id:
+        type: string
+    steps:
+      - run:
+          name: Destroy environments
+          when: on_fail
+          command: |
+            # Your code here
+            aws cloudformation delete-stack --stack-name udapeople-backend-<<parameters.workflow_id>>
+            aws s3 rm s3://udapeople-<<parameters.workflow_id>> --recursive
+            aws cloudformation delete-stack --stack-name udapeople-frontend-<<parameters.workflow_id>>
+  revert-migrations:
+    description: Revert the last migration if successfully run in the current workflow.
+    parameters:
+      when:
+        type: string
+      id:
+        type: string
+    steps:
+      - run:
+          name: Revert migrations
+          working_directory: ./backend
+          command: |
+            SUCCESS=$(curl --insecure "https://kvdb.io/${KVDB_BUCKET}/migration_<< parameters.id >>")
+            echo $SUCCESS
+            if [[ "$SUCCESS" == "success" ]]
+            then
+              pwd
+              ls -la
+              npm run migrations:revert
+            fi
+          when: on_fail
 jobs:
   build-frontend:
     docker:
