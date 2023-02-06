@@ -33,13 +33,13 @@ commands:
               npm install
               npm run migrations:revert #revert the successful migration
             fi
-    aws:
+  aws:
     docker:
       - image: amazon/aws-cli
-commands:
-  install_awscli:
-    description: Install AWS CLI v2
-    steps:
+    commands:
+    install_awscli:
+      description: Install AWS CLI v2
+      steps:
       - run:
           name: Install AWS CLI v2
           command: |
